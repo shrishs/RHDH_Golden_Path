@@ -1,0 +1,162 @@
+---
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: spring-boot-weather-api-backend
+  title: Weather-App REST Backend
+  description: Create a rest api backend in spring-boot with CICD pipeline 
+  tags:
+    - springboot
+    - api
+    - microservice
+    - recommended
+spec:
+  type: service
+  parameters:
+    - title: Provide infomation about the service
+      properties:
+        orgName:
+          title: GitHub Org
+          type: string
+          default: ysoni-redhat
+        repoName:
+          title: Repository Name
+          type: string
+          default: spring-rhdhX
+        repoVisibility:
+          title: Repo visibility
+          type: string
+          default: public
+          enum:
+            - public
+            - private
+            - internal
+        description: 
+          title: Description
+          type: string
+          default: test
+          description: Provide a description which will help others understand what this component is for
+        clusterid:
+          title: RedHat Openshift Cluster ID
+          type: string
+        apikey:
+          title: Weather API Key
+          type: string
+        backendport:
+          title: Backend-Port
+          type: number
+          default: 7890
+          description: Port at which the server is going to listen for API request
+        frontendport:
+          title: Frontend-Port
+          type: number
+          default: 3000
+          description: Port at which the server is going to listen for HTTP request          
+        projectName:
+          title: Project Name/Tag
+          type: string
+          default: springboot-demo
+      required:
+        - orgName
+        - repoName
+        - backendport
+        - frontendport
+        - projectName
+        - clusterid
+        - apikey
+    - title: Provide Information about deployment targets 
+      properties:
+        namespace:
+          title: k8s Namespace
+          type: string 
+          default: demo-project
+        argocdServer:
+          title: ArgoCD Server
+          type: string
+          #default: argocd-server.demo-project.svc:443
+          default: openshift-gitops-server.openshift-gitops.svc:80
+        argocdUsername:
+          title: ArgoCD Username
+          type: string
+          default: admin
+        argocdPassword:
+          title: ArgoCD Password
+          type: string
+          description: The password for ArgoCD login
+          default: 4BxbuHDeyr8PpLT67IgRtQZVNqWkajv1
+      required:
+        - argocdServer
+        - argocdUsername
+        - argocdPassword
+        - namespace
+
+  steps:
+    - id: debug-input
+      name: Debug Input Parameters
+      action: debug:log
+      input:
+        message: |
+          📦 Received input parameters:
+          orgName: ${{ parameters.orgName }}
+          repoName: ${{ parameters.repoName }}
+          repoVisibility: ${{ parameters.repoVisibility }}
+          description: ${{ parameters.description }}
+          backendport: ${{ parameters.backendport }}
+          frontendport: ${{ parameters.frontendport }}
+          namespace: ${{ parameters.namespace }}
+
+    - id: sourceCodeTemplate
+      name: Generating the Source Code Component
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: .          
+        values:
+          orgName: ${{ parameters.orgName }}
+          repoName: ${{ parameters.repoName }}
+          sourceControl: github.com
+          backendport: ${{ parameters.backendport }}
+          frontendport: ${{ parameters.frontendport }}
+          owner: ${{ parameters.orgName }}
+          applicationType: service
+          description: ${{ parameters.description }}
+          lifecycle: experimental
+          namespace: ${{ parameters.namespace }}
+          deployName:  ${{ parameters.repoName }}
+          entityKind: Component
+          projectName: ${{ parameters.projectName }}
+          apikey: ${{ parameters.apikey }}
+          clusterid: ${{ parameters.clusterid }}
+
+    - id: deployManifests
+      name: "Generating deployment manifests"
+      action: fetch:template
+      input:
+        url: ../../skeletons/argocd
+        targetPath: deploy/k8s
+        values:
+          backendport: ${{ parameters.backendport }}
+          frontendport: ${{ parameters.frontendport }}
+          orgName: ${{ parameters.orgName }}
+          repoName: ${{ parameters.repoName }}
+          namespace: ${{ parameters.namespace }}
+          projectName: ${{ parameters.projectName }}
+          clusterid: ${{ parameters.clusterid }}
+          apikey: ${{ parameters.apikey }}
+
+    - id: publish
+      name: Publishing to the Source Code Repository
+      action: publish:github
+      input:
+        allowedHosts: ['github.com']
+        repoVisibility: ${{ parameters.repoVisibility }}
+        description: ${{ parameters.description }}
+        repoUrl: github.com?owner=${{ parameters.orgName }}&repo=${{ parameters.repoName }}
+        defaultBranch: main
+        
+    - id: register
+      name: Registering the Catalog Info Component
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml

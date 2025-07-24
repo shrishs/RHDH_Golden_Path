@@ -1,0 +1,29 @@
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: springboot-route
+  namespace: ${{ values.namespace }}
+spec:
+  to:
+    kind: Service
+    name: springboot-service
+  port:
+    targetPort: ${{ values.backendport }}
+  tls:
+    termination: edge
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: react-app-route
+  namespace: ${{ values.namespace }}
+spec:
+  to:
+    kind: Service
+    name: react-app-service
+  port:
+    targetPort: ${{ values.frontendport }}
+  tls:
+    termination: edge
+    
