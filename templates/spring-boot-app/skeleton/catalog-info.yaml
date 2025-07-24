@@ -15,3 +15,5 @@ metadata:
 spec:
   type: ${{ values.applicationType }}
   lifecycle: ${{ values.lifecycle }}
+  providesApis:
+    - ${{ values.repoName }}-api
